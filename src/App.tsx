@@ -3,16 +3,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Avatar, Layout } from "antd"
 import { UserOutlined } from "@ant-design/icons"
 
-import MainHeader from "./components/layout/MainHeader"
-import AuthModal from "./components/auth/AuthModal"
-import CinemaDetailPage, { type CinemaMovieMeta } from "./components/cinemas/CinemaDetailPage"
-import CinemaLocationsPage from "./components/cinemas/CinemaLocationsPage"
-import CinemaInfoDialog from "./components/cinemas/CinemaInfoDialog"
-import MovieCatalogView, { type CatalogMovie, type CatalogOption } from "./components/listing/MovieCatalogView"
-import MovieShowtimeHeader from "./components/movieDetail/MovieShowtimeHeader"
-import MovieDetailDialog from "./components/movieDetail/MovieDetailDialog"
-import ShowtimeFilterBar from "./components/movieDetail/ShowtimeFilterBar"
-import CinemaShowtimes from "./components/movieDetail/CinemaShowtimes"
+import MainHeader from "./features/layout/components/MainHeader"
+import AuthModal from "./features/auth/components/AuthModal"
+import CinemaDetailPage, { type CinemaMovieMeta } from "./features/cinemas/components/CinemaDetailPage"
+import CinemaLocationsPage from "./features/cinemas/components/CinemaLocationsPage"
+import CinemaInfoDialog from "./features/cinemas/components/CinemaInfoDialog"
+import MovieCatalogView, { type CatalogMovie, type CatalogOption } from "./features/catalog/components/MovieCatalogView"
+import MovieShowtimeHeader from "./features/movieDetail/components/MovieShowtimeHeader"
+import MovieDetailDialog from "./features/movieDetail/components/MovieDetailDialog"
+import ShowtimeFilterBar from "./features/movieDetail/components/ShowtimeFilterBar"
+import CinemaShowtimes from "./features/movieDetail/components/CinemaShowtimes"
 
 import {
   cinemaShowtimes,
@@ -24,8 +24,8 @@ import {
   movieDetail,
   movieDetailsById,
   movieList,
-} from "./data/sampleData"
-import { locationOptions, navigationTabs } from "./constants/ui"
+} from "./features/shared/sampleData"
+import { locationOptions, navigationTabs } from "./features/layout/constants/ui"
 
 import type {
   CinemaLocation,
@@ -33,7 +33,7 @@ import type {
   MovieDetail as MovieDetailType,
   Movie,
   NavigationTab,
-} from "./types"
+} from "./features/shared/types"
 
 const { Content } = Layout
 
@@ -70,6 +70,33 @@ const movieGenreLookup: Record<string, string> = {
   "movie-8": "Fantasy",
 }
 
+// Import env file + keys
+type GlobalEnv = typeof globalThis & {
+  __GOOGLE_MAPS_API_KEY__?: string
+}
+
+type ImportMetaWithEnv = ImportMeta & {
+  env?: Record<string, string | undefined>
+}
+
+const resolveGoogleMapsApiKey = (): string | undefined => {
+  const globalEnv = globalThis as GlobalEnv
+  if (typeof globalEnv.__GOOGLE_MAPS_API_KEY__ === "string") {
+    return globalEnv.__GOOGLE_MAPS_API_KEY__
+  }
+
+  if (typeof import.meta !== "undefined") {
+    const viteEnv = (import.meta as ImportMetaWithEnv).env
+    const viteKey = viteEnv?.VITE_GOOGLE_MAPS_API_KEY
+    if (typeof viteKey === "string") {
+      return viteKey
+    }
+  }
+
+  return undefined
+}
+// ------------------------------------------------------------------
+
 const defaultMovieId = movieList[0]?.id ?? movieDetail.id
 const movieDetailEntries: Array<[string, MovieDetailType]> = Object.entries(movieDetailsById)
 
@@ -95,6 +122,7 @@ const toCatalogMovie = (movie: Movie, index: number): CategorizedMovie => {
   }
 }
 
+// Tabs Route
 const toTitleCase = (input: string) => input.replace(/\b\w/g, (char) => char.toUpperCase())
 
 const normalizePathname = (pathname: string) => {
@@ -123,37 +151,7 @@ const parseRouteFromPath = (pathname: string, tabs: NavigationTab[], fallbackKey
   const detailSegment = matchedTab ? segments[1] ?? null : null
   return { tabKey, detailSegment }
 }
-  
-type GlobalEnv = typeof globalThis & {
-  __GOOGLE_MAPS_API_KEY__?: string
-  process?: { env?: Record<string, string | undefined> }
-}
-
-type ImportMetaWithEnv = ImportMeta & {
-  env?: Record<string, string | undefined>
-}
-
-const resolveGoogleMapsApiKey = (): string | undefined => {
-  const globalEnv = globalThis as GlobalEnv
-  if (typeof globalEnv.__GOOGLE_MAPS_API_KEY__ === "string") {
-    return globalEnv.__GOOGLE_MAPS_API_KEY__
-  }
-
-  if (typeof import.meta !== "undefined") {
-    const viteEnv = (import.meta as ImportMetaWithEnv).env
-    const viteKey = viteEnv?.VITE_GOOGLE_MAPS_API_KEY
-    if (typeof viteKey === "string") {
-      return viteKey
-    }
-  }
-
-  const processKey = globalEnv.process?.env?.REACT_APP_GOOGLE_MAPS_API_KEY
-  if (typeof processKey === "string") {
-    return processKey
-  }
-
-  return undefined
-}
+//------------------------------------------------------------------------------------------------
 
 function App() {
   const headerTabs = navigationTabs
@@ -559,7 +557,7 @@ function App() {
   }
 
   return (
-    <Layout className="app-layout">
+    <Layout className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50 to-slate-100 text-slate-900">
       <MainHeader
         locations={locationOptions}
         navigationTabs={headerTabs}
@@ -573,97 +571,101 @@ function App() {
         authControl={avatarControl}
       />
 
-      <Content className="app-content py-7">
-        {activeNavTab === "cinemas" ? (
-          activeCinemaDetail ? (
-            <CinemaDetailPage
-              cinema={activeCinemaDetail}
-              showtimes={activeCinemaShowtimes}
-              dateOptions={dateOptions}
-              movieMeta={movieMetaById}
-              onViewMovie={(movieId) => {
-                setActiveCinemaDetailId(null)
-                handleSelectMovie(movieId)
-              }}
-            />
+      <Content className="px-6 py-8">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
+          {activeNavTab === "cinemas" ? (
+            activeCinemaDetail ? (
+              <CinemaDetailPage
+                cinema={activeCinemaDetail}
+                showtimes={activeCinemaShowtimes}
+                dateOptions={dateOptions}
+                movieMeta={movieMetaById}
+                onViewMovie={(movieId) => {
+                  setActiveCinemaDetailId(null)
+                  handleSelectMovie(movieId)
+                }}
+              />
+            ) : (
+              <>
+                <CinemaLocationsPage
+                  cinemas={cinemasForActiveCity}
+                  cityLabel={cityLabel}
+                  cityCenter={cityCenter}
+                  isLoggedIn={isLoggedIn}
+                  focusedCinemaId={mapFocusedCinemaId}
+                  googleMapsApiKey={googleMapsApiKey}
+                  onFocusCinema={handleFocusCinemaOnMap}
+                  onShowCinemaInfo={handleShowCinemaInfo}
+                  onViewCinemaDetail={handleOpenCinemaDetail}
+                />
+                <CinemaInfoDialog
+                  open={Boolean(activeCinemaInfo)}
+                  cinema={activeCinemaInfo}
+                  onClose={handleCloseCinemaInfo}
+                  onViewShowtimes={handleViewShowtimesForCinema}
+                />
+              </>
+            )
+          ) : activeNavTab === "movies" ? (
+            currentView === "catalog" ? (
+              <MovieCatalogView
+                featuredMovies={filteredCatalogMovies}
+                allMovies={catalogMovies}
+                categories={categoryOptions}
+                activeCategory={activeCategory}
+                onCategoryChange={(value) => setActiveCategory(value as CatalogCategory)}
+                genreOptions={genreOptions}
+                selectedGenre={selectedGenre}
+                onGenreChange={setSelectedGenre}
+                languageOptions={languageOptions}
+                selectedLanguage={selectedListingLanguage}
+                onLanguageChange={setSelectedListingLanguage}
+                formatOptions={formatOptions}
+                selectedFormat={selectedListingFormat}
+                onFormatChange={setSelectedListingFormat}
+                onSelectMovie={handleSelectMovie}
+              />
+            ) : (
+              <>
+                {selectedMovieCard ? (
+                  <MovieShowtimeHeader
+                    movie={selectedMovieCard}
+                    certificate={activeMovieDetail.certificate}
+                    runtime={activeMovieDetail.runtime}
+                    tagline={activeMovieDetail.tagline}
+                    trailer={{
+                      thumbnail:
+                        activeMovieDetail.videos[0]?.thumbnail ??
+                        activeMovieDetail.poster ??
+                        selectedMovieCard.image,
+                      embedUrl: activeMovieDetail.videos[0]?.embedUrl,
+                    }}
+                    onViewDetails={() => setDetailsDialogOpen(true)}
+                  />
+                ) : null}
+                <ShowtimeFilterBar
+                  dates={movieDateOptions}
+                  selectedDate={selectedDate}
+                  onDateChange={setSelectedDate}
+                  languageOptions={languageFilters}
+                  selectedLanguage={selectedShowtimeLanguage}
+                  onLanguageChange={setSelectedShowtimeLanguage}
+                  formatOptions={formatFilters}
+                  selectedFormat={selectedShowtimeFormat}
+                  onFormatChange={setSelectedShowtimeFormat}
+                  experienceOptions={experienceFilters}
+                  selectedExperience={selectedExperience}
+                  onExperienceChange={setSelectedExperience}
+                />
+                <CinemaShowtimes cinemas={filteredCinemas} />
+              </>
+            )
           ) : (
-            <>
-              <CinemaLocationsPage
-                cinemas={cinemasForActiveCity}
-                cityLabel={cityLabel}
-                cityCenter={cityCenter}
-                isLoggedIn={isLoggedIn}
-                focusedCinemaId={mapFocusedCinemaId}
-                googleMapsApiKey={googleMapsApiKey}
-                onFocusCinema={handleFocusCinemaOnMap}
-                onShowCinemaInfo={handleShowCinemaInfo}
-                onViewCinemaDetail={handleOpenCinemaDetail}
-              />
-              <CinemaInfoDialog
-                open={Boolean(activeCinemaInfo)}
-                cinema={activeCinemaInfo}
-                onClose={handleCloseCinemaInfo}
-                onViewShowtimes={handleViewShowtimesForCinema}
-              />
-            </>
-          )
-        ) : activeNavTab === "movies" ? (
-          currentView === "catalog" ? (
-            <MovieCatalogView
-              featuredMovies={filteredCatalogMovies}
-              allMovies={catalogMovies}
-              categories={categoryOptions}
-              activeCategory={activeCategory}
-              onCategoryChange={(value) => setActiveCategory(value as CatalogCategory)}
-              genreOptions={genreOptions}
-              selectedGenre={selectedGenre}
-              onGenreChange={setSelectedGenre}
-              languageOptions={languageOptions}
-              selectedLanguage={selectedListingLanguage}
-              onLanguageChange={setSelectedListingLanguage}
-              formatOptions={formatOptions}
-              selectedFormat={selectedListingFormat}
-              onFormatChange={setSelectedListingFormat}
-              onSelectMovie={handleSelectMovie}
-            />
-          ) : (
-            <>
-              {selectedMovieCard ? (
-                <MovieShowtimeHeader
-                  movie={selectedMovieCard}
-                  certificate={activeMovieDetail.certificate}
-                  runtime={activeMovieDetail.runtime}
-                  tagline={activeMovieDetail.tagline}
-              trailer={{
-                thumbnail:
-                  activeMovieDetail.videos[0]?.thumbnail ?? activeMovieDetail.poster ?? selectedMovieCard.image,
-                embedUrl: activeMovieDetail.videos[0]?.embedUrl,
-              }}
-              onViewDetails={() => setDetailsDialogOpen(true)}
-            />
-          ) : null}
-              <ShowtimeFilterBar
-                dates={movieDateOptions}
-                selectedDate={selectedDate}
-                onDateChange={setSelectedDate}
-                languageOptions={languageFilters}
-                selectedLanguage={selectedShowtimeLanguage}
-                onLanguageChange={setSelectedShowtimeLanguage}
-                formatOptions={formatFilters}
-                selectedFormat={selectedShowtimeFormat}
-                onFormatChange={setSelectedShowtimeFormat}
-                experienceOptions={experienceFilters}
-                selectedExperience={selectedExperience}
-                onExperienceChange={setSelectedExperience}
-              />
-              <CinemaShowtimes cinemas={filteredCinemas} />
-            </>
-          )
-        ) : (
-          <div className="min-h-[320px] flex items-center justify-center text-center text-gray-500">
-            Coming soon.
-          </div>
-        )}
+            <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white/60 text-center text-slate-500">
+              Coming soon.
+            </div>
+          )}
+        </div>
       </Content>
 
       <MovieDetailDialog
